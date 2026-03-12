@@ -1,0 +1,25 @@
+{
+  "data": {
+    "max_vocab_size": 4096,
+    "max_tokens": 50000,
+    "window_size": 2,
+    "val_ratio": 0.1,
+    "seed": 1410
+  },
+  "models": [
+    {
+      "name": "skipgram",
+      "embedding_dims": [32, 64],
+      "lrs": [0.05, 0.1],
+      "batch_sizes": [64, 128],
+      "epochs": 3
+    },
+    {
+      "name": "cbow",
+      "embedding_dims": [32, 64],
+      "lrs": [0.05, 0.1],
+      "batch_sizes": [64, 128],
+      "epochs": 3
+    }
+  ]
+}
