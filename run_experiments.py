@@ -17,7 +17,7 @@ from data_utils import (
     build_vocab,
     encode_tokens,
 )
-from training import MODEL_REGISTRY, grid_search_for_model
+from training import MODEL_REGISTRY, ModelSpec, grid_search_for_model
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -26,10 +26,15 @@ logging.basicConfig(level=logging.DEBUG)
 @dataclass
 class ModelGridConfig:
     name: str
-    embedding_dims: List[int] = field(default_factory=lambda: [32, 64])
-    lrs: List[float] = field(default_factory=lambda: [0.05, 0.1])
-    batch_sizes: List[int] = field(default_factory=lambda: [64, 128])
+    embedding_dims: List[int] | int = field(default_factory=lambda: [32, 64])
+    lrs: List[float] | float = field(default_factory=lambda: [0.05, 0.1])
+    batch_sizes: List[int] | int = field(default_factory=lambda: [64, 128])
     epochs: int = 3
+    num_neg: Optional[int | List[int]] = None
+    early_stopping_patience: Optional[int] = None
+    early_stopping_min_delta: float = 0.0
+    # 1 is constant LR, 0.01 is 1% decay at the max epoch
+    lr_decay_final_factor: List[float] | float = 1.0
 
 
 @dataclass
@@ -93,6 +98,12 @@ def load_or_build_dataset(data_cfg: DataConfig) -> (Dict[str, int], np.ndarray):
 def run_experiment(cfg: ExperimentConfig):
     word_to_id, ids = load_or_build_dataset(cfg.data)
 
+    # build negative-sampling distribution U(w)^(3/4) as in original word2vec
+    vocab_size = len(word_to_id)
+    counts = np.bincount(ids, minlength=vocab_size).astype(np.float64)
+    probs = counts ** 0.75
+    probs /= probs.sum()
+
     results_all = []
 
     for model_cfg in cfg.models:
@@ -113,14 +124,12 @@ def run_experiment(cfg: ExperimentConfig):
         logging.info(f"Running grid search for model {model_cfg.name}")
         results = grid_search_for_model(
             spec=spec,
-            vocab_size=len(word_to_id),
+            vocab_size=vocab_size,
             train_pairs=train_pairs,
             val_pairs=val_pairs,
-            embedding_dims=model_cfg.embedding_dims,
-            lrs=model_cfg.lrs,
-            batch_sizes=model_cfg.batch_sizes,
-            epochs=model_cfg.epochs,
+            model_cfg=model_cfg,
             seed=cfg.data.seed,
+            neg_probs=probs,
         )
         results_all.extend(results)
 
@@ -138,7 +147,17 @@ def run_experiment(cfg: ExperimentConfig):
 
     csv_path = output_dir / "results.csv"
     logging.info(f"Saving all results to {csv_path}")
-    fieldnames = ["model_type", "embedding_dim", "lr", "batch_size", "final_val_loss", "train_loss", "val_loss"]
+    fieldnames = [
+        "model_type",
+        "embedding_dim",
+        "lr",
+        "batch_size",
+        "final_val_loss",
+        "mean_epoch_time",
+        "train_loss",
+        "val_loss",
+        "num_neg",
+    ]
     with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -150,8 +169,10 @@ def run_experiment(cfg: ExperimentConfig):
                 "lr": r["lr"],
                 "batch_size": r["batch_size"],
                 "final_val_loss": r["final_val_loss"],
+                 "mean_epoch_time": r.get("mean_epoch_time", None),
                 "train_loss": json.dumps(history["train_loss"]),
                 "val_loss": json.dumps(history["val_loss"]),
+                 "num_neg": r.get("num_neg", None),
             }
             writer.writerow(row)
 
