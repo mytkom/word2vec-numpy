@@ -14,14 +14,16 @@
       "embedding_dims": [64, 128],
       "lrs": [0.01, 0.003],
       "batch_sizes": [256, 512],
-      "epochs": 50
+      "epochs": 50,
+      "lr_decay_final_factor": [1.0, 0.1, 0.01]
     },
     {
       "name": "cbow",
       "embedding_dims": [64, 128],
       "lrs": [0.01, 0.003],
       "batch_sizes": [256, 512],
-      "epochs": 50
+      "epochs": 50,
+      "lr_decay_final_factor": [1.0, 0.1, 0.01]
     },
     {
       "name": "skipgram_ns",
@@ -29,7 +31,8 @@
       "lrs": [0.01, 0.003],
       "batch_sizes": [256, 512],
       "num_neg": [5, 10, 15],
-      "epochs": 50
+      "epochs": 50,
+      "lr_decay_final_factor": [1.0, 0.1, 0.01]
     },
     {
       "name": "cbow_ns",
@@ -37,7 +40,8 @@
       "lrs": [0.01, 0.003],
       "batch_sizes": [256, 512],
       "num_neg": [5, 10, 15],
-      "epochs": 50
+      "epochs": 50,
+      "lr_decay_final_factor": [1.0, 0.1, 0.01]
     }
   ]
 }
